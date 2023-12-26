@@ -7,8 +7,9 @@
 	],
 	"overrides": [
 		{
-			// "files": [
-			// ],
+			"files": [
+				"src/**/*.{ts,tsx}"
+			],
 			"rules": {
 				"@next/next/no-img-element": "off"
 			}

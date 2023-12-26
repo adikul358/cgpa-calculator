@@ -1,5 +1,5 @@
-import React from 'react'
-import { ConfigProvider } from 'antd'
+import React from "react"
+import { ConfigProvider } from "antd"
 import theme from "./themeConfig"
 
 const withTheme = (node: React.ReactNode) => {

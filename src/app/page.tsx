@@ -1,113 +1,349 @@
-import Image from 'next/image'
+"use client"
 
-export default function Home() {
+// Imports
+import React, { useContext, useEffect, useRef, useState } from "react"
+import { Typography, Table, InputRef, Button, Form, Input, Select } from "antd"
+import type { FormInstance } from "antd/es/form"
+import { DeleteOutlined, MinusCircleOutlined, PlusCircleOutlined } from "@ant-design/icons"
+const { Title, Text } = Typography
+import type { SelectProps } from "antd"
+
+// Type declarations
+interface DataType {
+  key: number
+  course: string
+  credits: number
+  grade: string | number
+} 
+interface EditableRowProps {
+  index: number
+}
+interface EditableCellProps {
+  title: React.ReactNode
+  editable: boolean
+  children: React.ReactNode
+  dataIndex: keyof DataType
+  record: DataType
+  handleSave: (record: DataType) => void
+}
+type EditableTableProps = Parameters<typeof Table>[0]
+type ColumnTypes = Exclude<EditableTableProps["columns"], undefined>
+
+
+// Context
+const EditableContext = React.createContext<FormInstance<any> | null>(null)
+
+
+// Sub-components
+const GradeCell: React.FC<{onChange: SelectProps["onChange"]}> = ({onChange}) => {
   return (
-    <main className="flex min-h-screen flex-col items-center justify-between p-24">
-      <div className="z-10 max-w-5xl w-full items-center justify-between font-mono text-sm lg:flex">
-        <p className="fixed left-0 top-0 flex w-full justify-center border-b border-gray-300 bg-gradient-to-b from-zinc-200 pb-6 pt-8 backdrop-blur-2xl dark:border-neutral-800 dark:bg-zinc-800/30 dark:from-inherit lg:static lg:w-auto  lg:rounded-xl lg:border lg:bg-gray-200 lg:p-4 lg:dark:bg-zinc-800/30">
-          Get started by editing&nbsp;
-          <code className="font-mono font-bold">src/app/page.tsx</code>
-        </p>
-        <div className="fixed bottom-0 left-0 flex h-48 w-full items-end justify-center bg-gradient-to-t from-white via-white dark:from-black dark:via-black lg:static lg:h-auto lg:w-auto lg:bg-none">
-          <a
-            className="pointer-events-none flex place-items-center gap-2 p-8 lg:pointer-events-auto lg:p-0"
-            href="https://vercel.com?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            By{' '}
-            <Image
-              src="/vercel.svg"
-              alt="Vercel Logo"
-              className="dark:invert"
-              width={100}
-              height={24}
-              priority
-            />
-          </a>
+    <Select
+      onChange={onChange}
+      defaultValue=""
+      options={[
+        { value: "", label: "Select", disabled: true },
+        { value: 10, label: "O (10)" },
+        { value: 9, label: "A+ (9)" },
+        { value: 8, label: "A (8)" },
+        { value: 7, label: "B+ (7)" },
+        { value: 6, label: "B (6)" },
+        { value: 5, label: "C+ (5)" },
+        { value: 0, label: "F (0)" },
+      ]}
+    />
+  )
+}
+
+const EditableRow: React.FC<EditableRowProps> = ({ index, ...props }) => {
+  const [form] = Form.useForm()
+  return (
+    <Form form={form} component={false}>
+      <EditableContext.Provider value={form}>
+        <tr {...props} />
+      </EditableContext.Provider>
+    </Form>
+  )
+}
+
+const EditableCell: React.FC<EditableCellProps> = ({
+  title,
+  editable,
+  children,
+  dataIndex,
+  record,
+  handleSave,
+  ...restProps
+}) => {
+  const [editing, setEditing] = useState(false)
+  const inputRef = useRef<InputRef>(null)
+  const form = useContext(EditableContext)!
+
+  useEffect(() => {
+    if (editing) {
+      inputRef.current!.focus()
+    }
+  }, [editing])
+
+  const toggleEdit = () => {
+    setEditing(!editing)
+    form.setFieldsValue({ [dataIndex]: record[dataIndex] })
+    console.log(form.getFieldsValue({}))
+  }
+
+  const save = async () => {
+    try {
+      const values = await form.validateFields()
+      toggleEdit()
+      handleSave({ ...record, ...values })
+    } catch (errInfo) {
+      console.log("Save failed:", errInfo)
+    }
+  }
+
+  let childNode = children
+
+  if (editable) {
+    childNode = editing ? (
+      <Form.Item
+        style={{ margin: 0 }}
+        name={dataIndex}
+        rules={[
+          {
+            required: true,
+            message: `${title} is required.`,
+          },
+        ]}
+      >
+        <Input ref={inputRef} onPressEnter={save} onBlur={save} />
+      </Form.Item>
+    ) : (
+      <div className="editable-cell-value-wrap" style={{ paddingRight: 24 }} onClick={toggleEdit}>
+        {children}
+      </div>
+    )
+  }
+
+  return <td {...restProps}>{childNode}</td>
+}
+
+const CGPA: React.FC<{tableData: readonly DataType[]}> = ({tableData}) => {
+  const [cgpa, setcgpa] = useState(0)
+
+  useEffect(() => {
+    if (tableData.some(v1 => typeof v1.grade !== "number") || tableData.length === 0) {
+      setcgpa(0)
+    } else { 
+      let cgpaN = 0
+      let cgpaD = 0
+      tableData.map(v => {
+        if (typeof v.grade === "number") {
+          cgpaN += v.credits * v.grade
+          cgpaD += v.credits
+        }
+      })
+      setcgpa(Math.round(cgpaN / cgpaD * 100) / 100)
+    }
+  }, [tableData])
+
+
+  return (
+    <Title level={3} style={{marginBottom: 0}}>CGPA: <span className="text-[rgb(64,150,255)]">{cgpa ? cgpa.toFixed(2) : "-"}</span></Title>
+  )
+}
+
+
+// Main component
+const EditableTable: React.FC = () => {
+  const [dataSource, setDataSource] = useState<DataType[]>([
+    {
+      key: 1,
+      course: "Chemistry",
+      credits: 5,
+      grade: "",
+    },
+    {
+      key: 2,
+      course: "Calculus and Linear Algebra",
+      credits: 4,
+      grade: "",
+    },
+    {
+      key: 3,
+      course: "Programming for Problem Solving",
+      credits: 4,
+      grade: "",
+    },
+    {
+      key: 4,
+      course: "Japanese",
+      credits: 3,
+      grade: "",
+    },
+    {
+      key: 5,
+      course: "Philosophy of Engineering",
+      credits: 2,
+      grade: "",
+    },
+    {
+      key: 6,
+      course: "Basic Civil and Mechanical Workshop",
+      credits: 2,
+      grade: "",
+    },
+    {
+      key: 7,
+      course: "Introduction to Computational Biology",
+      credits: 2,
+      grade: "",
+    },
+  ])
+
+  const [count, setCount] = useState(0)
+
+  const updateGrade = (key: React.Key | undefined, grade: number | string) => {
+    console.log(key, grade)
+    const newData = [...dataSource]
+    newData.map(v => {
+      if (v.key == key) { v.grade = grade }
+    })
+    setDataSource(newData)
+  }
+
+  const handleDelete = (key: React.Key | undefined) => {
+    const newData = dataSource.filter((item) => item.key !== key)
+    setDataSource(newData)
+  }
+
+  const defaultColumns: (ColumnTypes[number] & { editable?: boolean, dataIndex: string })[] = [
+    {
+      title: "Course Name",
+      dataIndex: "course",
+      editable: true,
+    },
+    {
+      title: "Credits",
+      dataIndex: "credits",
+      width: "20%",
+      editable: true,
+    },
+    {
+      title: "Grade",
+      dataIndex: "grade",
+      width: "20%",
+      render: (_, record: { key?: React.Key }) => <GradeCell onChange={(val) => updateGrade(record.key, val)} />
+    },
+    {
+      title: "",
+      dataIndex: "operation",
+      width: "64px",
+      align: "center",
+      render: (_, record: { key?: React.Key }) =>
+        dataSource.length >= 1 ? (
+          <Button onClick={() => handleDelete(record.key)} icon={<MinusCircleOutlined style={{color: "white"}} />} type="primary" style={{backgroundColor: "rgb(220,38,38)"}} />
+        ) : null,
+    },
+  ]
+
+  const handleAdd = () => {
+    const newData: DataType = {
+      key: count,
+      course: "Enter Name",
+      credits: 0,
+      grade: "",
+    }
+    setDataSource([...dataSource, newData])
+    setCount(count + 1)
+  }
+
+  const handleClear = () => {
+    setDataSource([])
+    setCount(0)
+  }
+
+  const handleSave = (row: DataType) => {
+    const newData = [...dataSource]
+    const index = newData.findIndex((item) => row.key === item.key)
+    const item = newData[index]
+    newData.splice(index, 1, {
+      ...item,
+      ...row,
+    })
+    setDataSource(newData)
+  }
+
+  const components = {
+    body: {
+      row: EditableRow,
+      cell: EditableCell,
+    },
+  }
+
+  const columns = defaultColumns.map((col) => {
+    if (!col.editable) {
+      return col
+    }
+    return {
+      ...col,
+      onCell: (record: DataType) => ({
+        record,
+        editable: col.editable,
+        dataIndex: col.dataIndex,
+        title: col.title,
+        handleSave,
+      }),
+    }
+  })
+
+  return (
+    <div>
+    <div className="flex justify-between items-center mb-6 gap-x-3">
+        <CGPA tableData={dataSource} />
+        <div className="flex gap-x-3">
+          <Button onClick={handleClear} type="primary" icon={<DeleteOutlined />} style={{ backgroundColor: "rgb(220,38,38)" }}>
+            Clear
+          </Button>
+          <Button onClick={handleAdd} type="primary" icon={<PlusCircleOutlined />} style={{ backgroundColor: "rgb(22,163,74)" }}>
+            Row
+          </Button>
         </div>
       </div>
-
-      <div className="relative flex place-items-center before:absolute before:h-[300px] before:w-[480px] before:-translate-x-1/2 before:rounded-full before:bg-gradient-radial before:from-white before:to-transparent before:blur-2xl before:content-[''] after:absolute after:-z-20 after:h-[180px] after:w-[240px] after:translate-x-1/3 after:bg-gradient-conic after:from-sky-200 after:via-blue-200 after:blur-2xl after:content-[''] before:dark:bg-gradient-to-br before:dark:from-transparent before:dark:to-blue-700 before:dark:opacity-10 after:dark:from-sky-900 after:dark:via-[#0141ff] after:dark:opacity-40 before:lg:h-[360px] z-[-1]">
-        <Image
-          className="relative dark:drop-shadow-[0_0_0.3rem_#ffffff70] dark:invert"
-          src="/next.svg"
-          alt="Next.js Logo"
-          width={180}
-          height={37}
-          priority
+      <div className="w-full overflow-x-scroll">
+        <Table
+          components={components}
+          rowClassName={() => "editable-row"}
+          bordered
+          dataSource={dataSource}
+          columns={columns as ColumnTypes}
+          pagination={{position: ["none", "none"]}}
+          size="middle"
         />
       </div>
+      
+    </div>
+  )
+}
 
-      <div className="mb-32 grid text-center lg:max-w-5xl lg:w-full lg:mb-0 lg:grid-cols-4 lg:text-left">
-        <a
-          href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Docs{' '}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Find in-depth information about Next.js features and API.
-          </p>
-        </a>
 
-        <a
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Learn{' '}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Learn about Next.js in an interactive course with&nbsp;quizzes!
-          </p>
-        </a>
+// Page export
+export default function Home() {
 
-        <a
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Templates{' '}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Explore the Next.js 13 playground.
-          </p>
-        </a>
+  return (
+    <main className="min-h-screen flex flex-col">
+      <header className="bg-primary-700 py-12">
+        <div className="page-width">
+          <Title style={{color: "rgba(255,255,255,.95)"}}>CGPA Calculator</Title>
+          <Text style={{color: "rgba(255,255,255,.95)"}}>Calculate your 10-point CGPA using this tool</Text>
+        </div>
+      </header>
 
-        <a
-          href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Deploy{' '}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Instantly deploy your Next.js site to a shareable URL with Vercel.
-          </p>
-        </a>
+      <div className="page-width py-12">
+        <EditableTable />
       </div>
+
+      <div className="page-width py-12 md">
+      </div>
+
     </main>
   )
 }
