@@ -2,11 +2,11 @@
 
 // Imports
 import React, { useContext, useEffect, useRef, useState } from "react"
-import { Typography, Table, InputRef, Button, Form, Input, Select } from "antd"
+import { Typography, Table, InputRef, Button, Form, Input, Select, ConfigProvider, theme } from "antd"
+import type { SelectProps } from "antd"
 import type { FormInstance } from "antd/es/form"
 import { DeleteOutlined, MinusCircleOutlined, PlusCircleOutlined } from "@ant-design/icons"
 const { Title, Text } = Typography
-import type { SelectProps } from "antd"
 
 // Type declarations
 interface DataType {
@@ -350,8 +350,27 @@ const EditableTable: React.FC = () => {
 // Page export
 export default function Home() {
 
+  // Set dark mode according to system
+  const [darkMode, setDarkMode] = useState<boolean>()
+
+  useEffect(() => {
+    const darkQuery = window.matchMedia("(prefers-color-scheme: dark)")
+    setDarkMode(darkQuery.matches)
+    const handleChange = (event: MediaQueryListEvent) => {
+      setDarkMode(event.matches)
+    }
+    darkQuery.addEventListener("change", handleChange)
+    return () => window.matchMedia("(prefers-color-scheme: dark)").removeEventListener("change", handleChange)
+  }, [])
+
+  const { defaultAlgorithm, darkAlgorithm } = theme
+  const appTheme = {
+    algorithm: darkMode ? darkAlgorithm : defaultAlgorithm
+  }
+
+
   return (
-    <main className="min-h-screen flex flex-col">
+    <main className={`min-h-screen flex flex-col ${darkMode ? "bg-black" : "bg-white"}`}>
       <header className="bg-primary-700 py-12">
         <div className="page-width">
           <Title style={{color: "rgba(255,255,255,.95)"}}>CGPA Calculator</Title>
@@ -360,10 +379,9 @@ export default function Home() {
       </header>
 
       <div className="page-width py-12">
-        <EditableTable />
-      </div>
-
-      <div className="page-width py-12 md">
+        <ConfigProvider theme={appTheme}>
+          <EditableTable />
+        </ConfigProvider>
       </div>
 
     </main>
