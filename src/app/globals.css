@@ -14,8 +14,14 @@
 .editable-row:hover .editable-cell-value-wrap {
   padding: 4px 11px;
   border: 1px solid #d9d9d9;
-  border-radius: 2px;
+  border-radius: 6px;
 }
+
+@media (prefers-color-scheme: dark) {
+  .editable-row:hover .editable-cell-value-wrap {
+    border: 1px solid #424242;
+  }
+} 
 
 .page-width {
 	@apply max-w-5xl mx-auto w-full max-lg:px-3;
