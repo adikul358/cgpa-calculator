@@ -12,7 +12,7 @@ import type { SelectProps } from "antd"
 interface DataType {
   key: number
   course: string
-  credits: number
+  credits: string | number
   grade: string | number
 } 
 interface EditableRowProps {
@@ -87,7 +87,6 @@ const EditableCell: React.FC<EditableCellProps> = ({
   const toggleEdit = () => {
     setEditing(!editing)
     form.setFieldsValue({ [dataIndex]: record[dataIndex] })
-    console.log(form.getFieldsValue({}))
   }
 
   const save = async () => {
@@ -103,24 +102,46 @@ const EditableCell: React.FC<EditableCellProps> = ({
   let childNode = children
 
   if (editable) {
-    childNode = editing ? (
-      <Form.Item
-        style={{ margin: 0 }}
-        name={dataIndex}
-        rules={[
-          {
-            required: true,
-            message: `${title} is required.`,
-          },
-        ]}
-      >
-        <Input ref={inputRef} onPressEnter={save} onBlur={save} />
-      </Form.Item>
-    ) : (
-      <div className="editable-cell-value-wrap" style={{ paddingRight: 24 }} onClick={toggleEdit}>
-        {children}
-      </div>
-    )
+    if (dataIndex === "credits") {
+      childNode = editing ? (
+        <Form.Item
+          style={{ margin: 0 }}
+          name={dataIndex}
+          rules={[
+            {
+              required: true,
+              message: `${title} are required.`,
+            },
+          ]}
+        >
+          <Input ref={inputRef} onPressEnter={save} onBlur={save} type="number" min={0}  />
+        </Form.Item>
+      ) : (
+        <div className="editable-cell-value-wrap" style={{ paddingRight: 24 }} onClick={toggleEdit}>
+          {children}
+        </div>
+      )
+    } else {
+      childNode = editing ? (
+        <Form.Item
+          style={{ margin: 0 }}
+          name={dataIndex}
+          rules={[
+            {
+              warningOnly: true,
+              required: true,
+              message: `${title} is required.`,
+            },
+          ]}
+        >
+          <Input ref={inputRef} onPressEnter={save} onBlur={save} />
+        </Form.Item>
+      ) : (
+        <div className="editable-cell-value-wrap" style={{ paddingRight: 24 }} onClick={toggleEdit}>
+          {children}
+        </div>
+      )
+    }
   }
 
   return <td {...restProps}>{childNode}</td>
@@ -137,8 +158,11 @@ const CGPA: React.FC<{tableData: readonly DataType[]}> = ({tableData}) => {
       let cgpaD = 0
       tableData.map(v => {
         if (typeof v.grade === "number") {
-          cgpaN += v.credits * v.grade
-          cgpaD += v.credits
+          const credits = typeof v.credits === "string" ? parseInt(v.credits) : v.credits
+          cgpaN += credits * v.grade
+          cgpaD += credits
+          console.log(v.course, credits, v.grade)
+          console.log(v.course, cgpaN, cgpaD)
         }
       })
       setcgpa(Math.round(cgpaN / cgpaD * 100) / 100)
@@ -202,7 +226,6 @@ const EditableTable: React.FC = () => {
   const [count, setCount] = useState(0)
 
   const updateGrade = (key: React.Key | undefined, grade: number | string) => {
-    console.log(key, grade)
     const newData = [...dataSource]
     newData.map(v => {
       if (v.key == key) { v.grade = grade }
@@ -296,31 +319,30 @@ const EditableTable: React.FC = () => {
   })
 
   return (
-    <div>
+    <>
     <div className="flex justify-between items-center mb-6 gap-x-3">
-        <CGPA tableData={dataSource} />
-        <div className="flex gap-x-3">
-          <Button onClick={handleClear} type="primary" icon={<DeleteOutlined />} style={{ backgroundColor: "rgb(220,38,38)" }}>
-            Clear
-          </Button>
-          <Button onClick={handleAdd} type="primary" icon={<PlusCircleOutlined />} style={{ backgroundColor: "rgb(22,163,74)" }}>
-            Row
-          </Button>
-        </div>
+      <CGPA tableData={dataSource} />
+      <div className="flex gap-x-3">
+        <Button onClick={handleClear} type="primary" icon={<DeleteOutlined />} style={{ backgroundColor: "rgb(220,38,38)" }}>
+          Clear
+        </Button>
+        <Button onClick={handleAdd} type="primary" icon={<PlusCircleOutlined />} style={{ backgroundColor: "rgb(22,163,74)" }}>
+          Row
+        </Button>
       </div>
-      <div className="w-full overflow-x-scroll">
-        <Table
-          components={components}
-          rowClassName={() => "editable-row"}
-          bordered
-          dataSource={dataSource}
-          columns={columns as ColumnTypes}
-          pagination={{position: ["none", "none"]}}
-          size="middle"
-        />
-      </div>
-      
     </div>
+    <div className="w-full overflow-x-scroll">
+      <Table
+        components={components}
+        rowClassName={() => "editable-row"}
+        bordered
+        dataSource={dataSource}
+        columns={columns as ColumnTypes}
+        pagination={{position: ["none", "none"]}}
+        size="middle"
+      />
+    </div>
+    </>
   )
 }
 
